@@ -8,6 +8,10 @@ ZABIS_NAME = os.getenv("ZABIS_NAME", "자비스")
 ZABIS_VOICE = os.getenv("ZABIS_VOICE", "ko-KR-SunHiNeural")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
+TELEGRAM_ALLOWED_IDS = [
+    int(x) for x in os.getenv("TELEGRAM_ALLOWED_IDS", "").split(",") if x.strip().isdigit()
+]
 DB_PATH = os.path.join(os.path.dirname(__file__), "memory.db")
 
 SYSTEM_PROMPT = f"""당신은 {ZABIS_NAME}입니다. 아이언맨의 자비스처럼 사용자를 돕는 AI 비서입니다.
