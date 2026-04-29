@@ -112,9 +112,18 @@ def parse_command(text: str) -> tuple[bool, str]:
                 return True, f"실행 중 오류가 발생했습니다: {e}"
 
     # ── 웹 검색 (실제 결과 파싱) ─────────────────────────────
-    if m := re.search(r'(.+?)\s*(검색해줘|검색해|찾아줘|알아봐줘)', t):
+    # 명시적 검색 요청
+    if m := re.search(r'(.+?)\s*(검색해줘|검색해|찾아줘|알아봐줘|알려줘|찾아봐)', t):
         query = m.group(1).strip()
         if not re.search(r'(파일|폴더)', query):
             return True, web_search(query)
+
+    # 가격/쇼핑 관련 자연어 쿼리 → 자동으로 검색
+    if re.search(r'(싼\s*곳|저렴한\s*곳|최저가|가격\s*비교|어디서\s*사|파는\s*곳|구매처|살\s*수\s*있)', t):
+        # 명사 추출: 동사/조사 앞 부분
+        query = re.sub(r'(싼\s*곳|저렴한\s*곳|최저가|가격\s*비교|어디서\s*사.*|파는\s*곳.*|구매처.*|살\s*수\s*있.*)', '', t).strip()
+        query = re.sub(r'\s*(은|는|이|가|을|를|의|에서|에)\s*$', '', query).strip()
+        if query:
+            return True, web_search(query + ' 최저가')
 
     return False, ""
