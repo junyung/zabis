@@ -5,7 +5,7 @@ import subprocess
 import webbrowser
 
 from skills.file_ops import read_file, write_file, list_directory, delete_file, search_files
-from skills.browser import open_url, fetch_webpage
+from skills.browser import open_url, fetch_webpage, web_search
 
 # 앱/웹 바로 실행 패턴
 _APP_PATTERNS = [
@@ -111,10 +111,10 @@ def parse_command(text: str) -> tuple[bool, str]:
             except Exception as e:
                 return True, f"실행 중 오류가 발생했습니다: {e}"
 
-    # ── 구글 검색 ────────────────────────────────────────────
-    if m := re.search(r'(.+?)\s*(검색해줘|검색해|구글에서 찾아)', t):
+    # ── 웹 검색 (실제 결과 파싱) ─────────────────────────────
+    if m := re.search(r'(.+?)\s*(검색해줘|검색해|찾아줘|알아봐줘)', t):
         query = m.group(1).strip()
-        webbrowser.open(f"https://www.google.com/search?q={query}")
-        return True, f"'{query}'를 검색했습니다."
+        if not re.search(r'(파일|폴더)', query):
+            return True, web_search(query)
 
     return False, ""

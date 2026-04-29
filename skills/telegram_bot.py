@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 import logging
+import pytz
+import apscheduler.schedulers.base as _apsched_base
+
+_orig_astimezone = _apsched_base.astimezone
+def _patched_astimezone(obj):
+    # datetime.timezone.utc 등 비pytz 타임존을 pytz.utc로 변환
+    if obj is not None and not hasattr(obj, 'localize'):
+        return pytz.utc
+    return _orig_astimezone(obj)
+_apsched_base.astimezone = _patched_astimezone
+
+import asyncio
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -56,7 +68,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.chat.send_action("typing")
 
     try:
-        reply = think(user_text)
+        # 동기 함수를 별도 스레드에서 실행해 이벤트 루프 블로킹 방지
+        reply = await asyncio.to_thread(think, user_text)
     except Exception as e:
         reply = f"오류가 발생했습니다: {e}"
 
@@ -72,7 +85,7 @@ def run_telegram_bot():
     if not TELEGRAM_TOKEN:
         raise ValueError(".env 파일에 TELEGRAM_TOKEN이 설정되지 않았습니다.")
 
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    app = Application.builder().token(TELEGRAM_TOKEN).job_queue(None).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("clear", cmd_clear))
     app.add_handler(CommandHandler("id", cmd_id))
