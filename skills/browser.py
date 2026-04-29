@@ -68,26 +68,40 @@ def web_search(query: str, num_results: int = 5) -> str:
         resp = requests.get(naver_url, headers=headers, timeout=8)
         resp.encoding = 'utf-8'
 
-        # 외부 링크 + 주변 제목 텍스트 추출
-        # Naver 검색 결과의 실제 링크는 a 태그의 href에 있고 naver 도메인이 아닌 것들
+        # 무관하거나 신뢰도 낮은 도메인 제외
         skip = re.compile(
-            r'(naver\.com|pstatic\.net|javascript|\.css|\.js|\.ico|\.png|\.svg|account\.kakao|appleid\.apple)'
+            r'(naver\.com|pstatic\.net|javascript|\.css|\.js|\.ico|\.png|\.svg'
+            r'|account\.kakao|appleid\.apple|youtube\.com|youtu\.be'
+            r'|google\.com|facebook\.com|twitter\.com|instagram\.com'
+            r'|tiktok\.com|pinterest\.|linkedin\.com|reddit\.com'
+            r'|cjoint\.|bit\.ly|tinyurl\.|goo\.gl|t\.co/)'
         )
-        raw_links = re.findall(r'href="(https?://[^"]+)"', resp.text)
-        seen, results = set(), []
+        # 쇼핑 쿼리는 한국 쇼핑/정보 사이트 우선
+        shopping_prefer = re.compile(
+            r'(coupang\.com|gmarket\.co\.kr|11st\.co\.kr|auction\.co\.kr'
+            r'|interpark\.com|danawa\.com|ppomppu\.co\.kr|ruliweb\.com'
+            r'|clien\.net|cafe\.naver|blog\.naver|tistory\.com|co\.kr)'
+        )
+
+        raw_links = re.findall(r'href="(https?://[^"&\s"]{10,})"', resp.text)
+        seen, preferred, others = set(), [], []
         for link in raw_links:
-            if not skip.search(link) and link not in seen:
-                seen.add(link)
-                results.append(link)
-            if len(results) >= num_results:
-                break
+            if skip.search(link) or link in seen:
+                continue
+            seen.add(link)
+            if is_shopping and shopping_prefer.search(link):
+                preferred.append(link)
+            else:
+                others.append(link)
+
+        results = (preferred + others)[:num_results]
 
         if results:
-            lines.append("🌐 웹 검색 결과")
+            lines.append("🌐 관련 페이지")
             for i, link in enumerate(results, 1):
                 lines.append(f"  {i}. {link}")
         elif not is_shopping:
-            lines.append(f"검색 결과 링크를 가져오지 못했습니다.")
+            lines.append("검색 결과 링크를 가져오지 못했습니다.")
             lines.append(f"직접 검색: {naver_url}")
 
     except Exception as e:
