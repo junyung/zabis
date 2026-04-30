@@ -6,6 +6,11 @@ import webbrowser
 
 from skills.file_ops import read_file, write_file, list_directory, delete_file, search_files
 from skills.browser import open_url, fetch_webpage, web_search
+from skills.parenting import (
+    add_baby, get_babies, log_feed, log_sleep, log_diaper,
+    add_growth, today_summary, get_last_feed,
+    vaccination_schedule, development_milestones,
+)
 
 # 앱/웹 바로 실행 패턴
 _APP_PATTERNS = [
@@ -120,10 +125,73 @@ def parse_command(text: str) -> tuple[bool, str]:
 
     # 가격/쇼핑 관련 자연어 쿼리 → 자동으로 검색
     if re.search(r'(싼\s*곳|저렴한\s*곳|최저가|가격\s*비교|어디서\s*사|파는\s*곳|구매처|살\s*수\s*있)', t):
-        # 명사 추출: 동사/조사 앞 부분
         query = re.sub(r'(싼\s*곳|저렴한\s*곳|최저가|가격\s*비교|어디서\s*사.*|파는\s*곳.*|구매처.*|살\s*수\s*있.*)', '', t).strip()
         query = re.sub(r'\s*(은|는|이|가|을|를|의|에서|에)\s*$', '', query).strip()
         if query:
             return True, web_search(query + ' 최저가')
+
+    # ── 육아 명령 ────────────────────────────────────────────
+
+    # 아기 등록: "아기 등록 이름 2024-03-15"
+    if m := re.search(r'아기\s*등록\s+(\S+)\s+(\d{4}-\d{2}-\d{2})', t):
+        return True, add_baby(m.group(1), m.group(2))
+
+    # 등록된 아기 목록
+    if re.search(r'(아기\s*(목록|리스트|명단)|등록된\s*아기)', t):
+        babies = get_babies()
+        if not babies:
+            return True, "등록된 아기가 없습니다. '아기 등록 [이름] [YYYY-MM-DD]' 명령을 사용해 주세요."
+        lines = ["👶 등록된 아기 목록:"]
+        for b in babies:
+            lines.append(f"  [{b['id']}] {b['name']} — {b['birthdate']}")
+        return True, "\n".join(lines)
+
+    # 수유 기록: "수유", "분유", "모유", "젖 먹였어"
+    if re.search(r'(수유|분유|모유|젖\s*(먹|줬|먹였))', t):
+        note_m = re.search(r'(ml|cc|\d+분)', t, re.IGNORECASE)
+        note = note_m.group(0) if note_m else ""
+        return True, log_feed(note)
+
+    # 수면 시작: "잠들었어", "재웠어", "수면 시작"
+    if re.search(r'(잠\s*들었|재웠|수면\s*시작|낮잠\s*시작|자기\s*시작)', t):
+        return True, log_sleep(start=True)
+
+    # 기상: "일어났어", "깼어", "수면 끝"
+    if re.search(r'(일어났|깼어|기상|수면\s*끝|낮잠\s*끝|잠\s*깼)', t):
+        return True, log_sleep(start=False)
+
+    # 기저귀: "기저귀 갈았어", "기저귀 교체"
+    if re.search(r'(기저귀\s*(갈았|교체|바꿨|갈아))', t):
+        note_m = re.search(r'(대변|소변|응가|쉬|똥)', t)
+        note = note_m.group(0) if note_m else ""
+        return True, log_diaper(note)
+
+    # 성장 기록: "키 75cm 몸무게 9.5kg"
+    if re.search(r'(성장\s*기록|키\s*\d|몸무게\s*\d)', t):
+        h = w = None
+        hm = re.search(r'키\s*([\d.]+)\s*cm', t)
+        wm = re.search(r'몸무게\s*([\d.]+)\s*kg', t)
+        if hm:
+            h = float(hm.group(1))
+        if wm:
+            w = float(wm.group(1))
+        if h or w:
+            return True, add_growth(h, w)
+
+    # 마지막 수유 확인
+    if re.search(r'(마지막\s*수유|언제\s*(수유|먹였|먹었)|수유\s*언제)', t):
+        return True, get_last_feed()
+
+    # 오늘 육아 요약
+    if re.search(r'(오늘\s*(육아\s*)?(요약|정리|현황)|하루\s*(육아\s*)?(요약|정리))', t):
+        return True, today_summary()
+
+    # 예방접종 일정
+    if re.search(r'(예방\s*접종|접종\s*일정|백신\s*일정)', t):
+        return True, vaccination_schedule()
+
+    # 발달 단계 / 이정표
+    if re.search(r'(발달\s*(단계|이정표|현황|상태)|성장\s*단계)', t):
+        return True, development_milestones()
 
     return False, ""

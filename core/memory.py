@@ -15,6 +15,8 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+    from skills.parenting import init_baby_db
+    init_baby_db()
 
 
 def save_message(role: str, content: str):
